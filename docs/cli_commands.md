@@ -710,6 +710,20 @@ This document provides an overview of CLI commands that can be sent to MeshCore 
 
 ### ACL
 
+#### Low-battery alert to a private channel (Room Server and Repeater)
+
+**Usage:**
+- `get alert` — show enabled state, threshold, channel name, and whether a key is set (never prints the secret)
+- `set alert.group <name>` — set the private channel name (1–31 bytes)
+- `set alert.groupkey <key>` — set its 16-byte secret as 32 hex digits or 24-character Base64
+- `set alert.threshold <millivolts>` — set the battery threshold (default: 4000 mV)
+- `set alert on` / `set alert off` — enable or disable periodic alerts
+- `test alert` — queue the same channel message immediately, regardless of the threshold or enabled state
+
+The channel name is stored for configuration and display; MeshCore selects and encrypts the destination channel using the secret key. Configure the same channel key on the receiving companion. Group messages have no individual delivery acknowledgement. After upgrading from the older direct-message alert, configure a channel name and key again; the old recipient public key is not used.
+
+---
+
 #### Add, update or remove permissions for a companion
 **Usage:** 
 - `setperm <pubkey> <permissions>`

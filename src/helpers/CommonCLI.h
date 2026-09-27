@@ -62,6 +62,10 @@ public:
   uint8_t advert_loc_policy = 0;
   uint32_t discovery_mod_timestamp = 0;
   float adc_multiplier = 0;
+  uint8_t battery_alert_enabled = 0;
+  uint16_t battery_alert_threshold_mv = 4000;
+  char battery_alert_channel_name[32] = {0};
+  uint8_t battery_alert_channel_key[16] = {0};
   char owner_info[120];
   uint8_t rx_boosted_gain = 0; // power settings
   uint8_t radio_fem_rxgain = 0; // LoRa FEM RX gain setting
@@ -160,6 +164,10 @@ private:
   protected:
     void structure() override {
       def("rd_only", _parent->allow_read_only);
+      def("batt_alert_en", _parent->battery_alert_enabled);
+      def("batt_alert_mv", _parent->battery_alert_threshold_mv);
+      def("alert_group", _parent->battery_alert_channel_name, sizeof(_parent->battery_alert_channel_name));
+      def("alert_chan_key", _parent->battery_alert_channel_key, sizeof(_parent->battery_alert_channel_key));
     }
   public:
     RoomPrefs(NodePrefs* parent) : _parent(parent) { }

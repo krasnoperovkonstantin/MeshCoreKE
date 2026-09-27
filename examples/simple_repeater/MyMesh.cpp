@@ -1,5 +1,6 @@
 #include "MyMesh.h"
 #include <algorithm>
+#include <stdlib.h>
 
 /* ------------------------------ Config -------------------------------- */
 
@@ -863,6 +864,7 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
     : mesh::Mesh(radio, ms, rng, rtc, *new StaticPoolPacketManager(32), tables),
       region_map(key_store), temp_map(key_store),
       _cli(board, rtc, sensors, region_map, acl, &_prefs, this),
+      _battery_alert(_prefs, board, *this, rtc, *_mgr, *this, default_scope),
       telemetry(MAX_PACKET_PAYLOAD - 4),
       discover_limiter(4, 120),  // max 4 every 2 minutes
       anon_limiter(4, 180)   // max 4 every 3 minutes
@@ -1236,6 +1238,8 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
     command += 3;
   }
 
+  if (_battery_alert.handleCommand(command, reply)) return;
+
   // handle ACL related commands
   if (memcmp(command, "setperm ", 8) == 0) {   // format:  setperm {pubkey-hex} {permissions-int8}
     char* hex = &command[8];
@@ -1298,11 +1302,13 @@ void MyMesh::loop() {
 
     updateFloodAdvertTimer(); // schedule next flood advert
     updateAdvertTimer();      // also schedule local advert (so they don't overlap)
+    _battery_alert.afterAdvert();
   } else if (next_local_advert && millisHasNowPassed(next_local_advert)) {
     mesh::Packet *pkt = createSelfAdvert();
     if (pkt) sendZeroHop(pkt);
 
     updateAdvertTimer(); // schedule next local advert
+    _battery_alert.afterAdvert();
   }
 
   if (set_radio_at && millisHasNowPassed(set_radio_at)) { // apply pending (temporary) radio params

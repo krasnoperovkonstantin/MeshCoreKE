@@ -947,6 +947,10 @@ void MyMesh::begin(bool has_display) {
   _prefs.tx_power_dbm = constrain(_prefs.tx_power_dbm, -9, MAX_LORA_TX_POWER);
   _prefs.gps_enabled = constrain(_prefs.gps_enabled, 0, 1);  // Ensure boolean 0 or 1
   _prefs.gps_interval = constrain(_prefs.gps_interval, 0, 86400);  // Max 24 hours
+  if (!(_prefs.adc_multiplier >= 0.0f && _prefs.adc_multiplier <= 10.0f)) {
+    _prefs.adc_multiplier = 0.0f;
+  }
+  board.setAdcMultiplier(_prefs.adc_multiplier);
 
 #ifdef BLE_PIN_CODE // 123456 by default
   if (_prefs.ble_pin == 0) {
@@ -1804,15 +1808,19 @@ void MyMesh::handleCmdFrame(size_t len) {
   } else if (cmd_frame[0] == CMD_GET_CUSTOM_VARS) {
     out_frame[0] = RESP_CODE_CUSTOM_VARS;
     char *dp = (char *)&out_frame[1];
-    for (int i = 0; i < sensors.getNumSettings() && dp - (char *)&out_frame[1] < 140; i++) {
-      if (i > 0) {
-        *dp++ = ',';
-      }
-      strcpy(dp, sensors.getSettingName(i));
-      dp = strchr(dp, 0);
-      *dp++ = ':';
-      strcpy(dp, sensors.getSettingValue(i));
-      dp = strchr(dp, 0);
+    float adc_multiplier = board.getAdcMultiplier();
+    if (adc_multiplier > 0.0f) {
+      size_t available = MAX_FRAME_SIZE - (dp - (char *)out_frame);
+      int written = snprintf(dp, available + 1, "adc.multiplier:%.3f", adc_multiplier);
+      if (written > 0 && (size_t)written <= available) dp += written;
+    }
+    for (int i = 0; i < sensors.getNumSettings(); i++) {
+      size_t available = MAX_FRAME_SIZE - (dp - (char *)out_frame);
+      int written = snprintf(dp, available + 1, "%s%s:%s",
+                             dp == (char *)&out_frame[1] ? "" : ",",
+                             sensors.getSettingName(i), sensors.getSettingValue(i));
+      if (written < 0 || (size_t)written > available) break;
+      dp += written;
     }
     _serial->writeFrame(out_frame, dp - (char *)out_frame);
   } else if (cmd_frame[0] == CMD_SET_CUSTOM_VAR && len >= 4) {
@@ -1821,8 +1829,18 @@ void MyMesh::handleCmdFrame(size_t len) {
     char *np = strchr(sp, ':'); // look for separator char
     if (np) {
       *np++ = 0; // modify 'cmd_frame', replace ':' with null
-      bool success = sensors.setSettingValue(sp, np);
-      if (success) {
+      if (strcmp(sp, "adc.multiplier") == 0) {
+        char* end;
+        float multiplier = strtof(np, &end);
+        if (end == np || *end != 0 || !(multiplier >= 0.0f && multiplier <= 10.0f) ||
+            !board.setAdcMultiplier(multiplier)) {
+          writeErrFrame(ERR_CODE_ILLEGAL_ARG);
+        } else {
+          _prefs.adc_multiplier = multiplier;
+          savePrefs();
+          writeOKFrame();
+        }
+      } else if (sensors.setSettingValue(sp, np)) {
         #if ENV_INCLUDE_GPS == 1
         // Update node preferences for GPS settings
         if (strcmp(sp, "gps") == 0) {
@@ -2050,8 +2068,28 @@ void MyMesh::checkCLIRescueCmd() {
         _prefs.ble_pin = atoi(&config[4]);
         savePrefs();
         Serial.printf("  > pin is now %06d\n", _prefs.ble_pin);
+      } else if (memcmp(config, "adc.multiplier ", 15) == 0) {
+        const char* value = &config[15];
+        char* end;
+        float multiplier = strtof(value, &end);
+        if (end == value || *end != 0 || !(multiplier >= 0.0f && multiplier <= 10.0f)) {
+          Serial.println("  Error: adc.multiplier must be 0..10");
+        } else if (!board.setAdcMultiplier(multiplier)) {
+          Serial.println("  Error: unsupported");
+        } else {
+          _prefs.adc_multiplier = multiplier;
+          savePrefs();
+          Serial.printf("  > adc.multiplier is now %.3f\n", board.getAdcMultiplier());
+        }
       } else {
         Serial.printf("  Error: unknown config: %s\n", config);
+      }
+    } else if (strcmp(cli_command, "get adc.multiplier") == 0) {
+      float multiplier = board.getAdcMultiplier();
+      if (multiplier == 0.0f) {
+        Serial.println("  Error: unsupported");
+      } else {
+        Serial.printf("  > %.3f\n", multiplier);
       }
     } else if (strcmp(cli_command, "rebuild") == 0) {
       bool success = _store->formatFileSystem();

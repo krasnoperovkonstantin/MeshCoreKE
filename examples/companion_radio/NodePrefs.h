@@ -35,6 +35,7 @@ public:
   uint8_t rx_boosted_gain = 0; // SX126x RX boosted gain mode (0=power saving, 1=boosted)
   uint8_t radio_fem_rxgain = 0; // external LoRa FEM RX gain (LNA)
   uint8_t radio_fem_txgain = 0; // external LoRa FEM TX gain (low by default)
+  float adc_multiplier = 0.0f; // 0 = board default battery voltage calibration
   uint8_t _client_repeat = 0;  // DEPRECATED -> use repeat.disable_fwd
   uint8_t path_hash_mode = 0;    // which path mode to use when sending
   uint8_t autoadd_max_hops = 0;  // 0 = no limit, 1 = direct (0 hops), N = up to N-1 hops (max 64)
@@ -115,6 +116,7 @@ private:
       def("tel_base", _parent->telemetry_mode_base);
       def("tel_loc", _parent->telemetry_mode_loc);
       def("tel_env", _parent->telemetry_mode_env);
+      def("adc_mult", _parent->adc_multiplier);
     }
   public:
     CompanionPrefs(NodePrefs* parent) : _parent(parent) { }
