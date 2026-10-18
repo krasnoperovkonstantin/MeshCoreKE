@@ -1182,6 +1182,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#virtual-rooms-promicro-repeater" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Virtual Rooms (ProMicro Repeater)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#region-management-v110" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2851,6 +2862,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#virtual-rooms-promicro-repeater" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Virtual Rooms (ProMicro Repeater)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#region-management-v110" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3331,6 +3353,7 @@
 <li><a href="#system">System</a></li>
 <li><a href="#routing">Routing</a></li>
 <li><a href="#acl">ACL</a></li>
+<li><a href="#virtual-rooms-promicro-repeater">Virtual Rooms (ProMicro Repeater)</a></li>
 <li><a href="#region-management-v110">Region Management</a><ul>
 <li><a href="#region-examples">Region Examples</a></li>
 </ul>
@@ -3831,6 +3854,83 @@ adverts running, set an explicit value in the 60-240 range.</p>
 <p><strong>Parameters:</strong>
 - <code>state</code>: <code>on</code> (enable) or <code>off</code> (disable)</p>
 <p><strong>Default:</strong> <code>off</code></p>
+<hr />
+<h3 id="virtual-rooms-promicro-repeater">Virtual Rooms (ProMicro Repeater)</h3>
+<p>The <code>ProMicro_repeater</code> build with <code>WITH_VIRTUAL_ROOMS</code> provides five independent room-server contacts (<code>room1</code> through <code>room5</code>) on the same radio as the repeater. All rooms are <strong>off by default</strong>. Each has its own identity, admin and guest passwords, ACL, and in-memory queue of up to 32 posts. Radio settings, repeater forwarding, and advert intervals are shared with the physical repeater. The post queues are cleared on reboot.</p>
+<p>Use the <strong>repeater's admin CLI</strong> (USB serial or remote administration through the repeater contact) for these commands. Replace <code>N</code> with <code>1</code> through <code>5</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get rooms</code></td>
+<td>List all rooms, names, and enabled states.</td>
+</tr>
+<tr>
+<td><code>get room.N</code></td>
+<td>Show one room's state, name, client/post counts, and password/read-only states.</td>
+</tr>
+<tr>
+<td><code>get room.N.name</code> / <code>set room.N.name &lt;name&gt;</code></td>
+<td>Read or change the room's advertised name.</td>
+</tr>
+<tr>
+<td><code>set room.N.admin.password &lt;password&gt;</code></td>
+<td>Set the room's admin password (1–15 characters). Required before enabling it.</td>
+</tr>
+<tr>
+<td><code>get room.N.guest.password</code> / <code>set room.N.guest.password &lt;password&gt;</code></td>
+<td>Read or change its guest password (1–15 characters).</td>
+</tr>
+<tr>
+<td><code>get room.N.allow.read.only</code> / <code>set room.N.allow.read.only on\|off</code></td>
+<td>Read or change whether clients without a matching password may enter as read-only guests.</td>
+</tr>
+<tr>
+<td><code>set room.N on\|off</code></td>
+<td>Enable or disable the room. Enabling queues a zero-hop room advert.</td>
+</tr>
+<tr>
+<td><code>get room.N.public.key</code></td>
+<td>Show the room's public key for its separate contact.</td>
+</tr>
+<tr>
+<td><code>get room.N.stats</code></td>
+<td>Show client count and post/push counters.</td>
+</tr>
+<tr>
+<td><code>get room.N.acl [offset]</code></td>
+<td>List room ACL entries, two at a time; <code>offset</code> defaults to 0.</td>
+</tr>
+<tr>
+<td><code>room.N.setperm &lt;64-hex-public-key&gt; &lt;0..3&gt;</code></td>
+<td>Set a room client's role: 0 guest, 1 read-only, 2 read-write, 3 admin.</td>
+</tr>
+<tr>
+<td><code>room.N.advert</code> / <code>room.N.advert.zerohop</code></td>
+<td>Manually advertise <strong>only this room</strong> by flood or zero-hop. The room must be on.</td>
+</tr>
+<tr>
+<td><code>room.N.post &lt;text&gt;</code></td>
+<td>Post a message as the room itself. The room must be on.</td>
+</tr>
+<tr>
+<td><code>room.N.key.generate</code></td>
+<td>Generate a new identity for the room; clears its ACL and posts and invalidates the old contact.</td>
+</tr>
+<tr>
+<td><code>set room.N.prv.key &lt;128-hex-private-key&gt;</code></td>
+<td>Restore an identity through the repeater admin CLI; also clears the room's ACL and posts. Keep the private key secret.</td>
+</tr>
+</tbody>
+</table>
+<p>For example, prepare and enable the first room with <code>set room.1.admin.password &lt;password&gt;</code>, <code>set room.1.name &lt;name&gt;</code>, <code>set room.1.guest.password &lt;password&gt;</code>, then <code>set room.1 on</code>. Use <code>room.1.advert</code> if its contact should be announced beyond zero hop.</p>
+<p><strong>Advert timing:</strong> <code>get/set advert.interval</code> and <code>get/set flood.advert.interval</code> on the repeater control the shared schedule. Each scheduled repeater advert starts a sequence of adverts for enabled rooms, spaced 7 seconds apart. The repeater's manual <code>advert</code> announces only the repeater; a room's manual <code>advert</code> announces only that room. There are no <code>get room.advert.interval</code> or <code>get room.flood.advert.interval</code> commands.</p>
+<p><strong>Through an individual room contact:</strong> After logging in as that room's admin, use <code>get/set name</code>, <code>get/set guest.password</code>, <code>get/set allow.read.only</code>, <code>get public.key</code>, <code>get role</code>, <code>get repeat</code>, <code>get stats</code>, <code>get acl [offset]</code>, <code>password &lt;new-admin-password&gt;</code>, <code>setperm &lt;public-key&gt; &lt;0..3&gt;</code>, <code>advert</code>, <code>advert.zerohop</code>, <code>room.post &lt;text&gt;</code>, <code>ver</code>, <code>board</code>, <code>clock</code>, and <code>power</code>. <code>get advert.interval</code> and <code>get flood.advert.interval</code> show the shared repeater intervals; changing them requires the repeater contact. Other shared settings (such as <code>get radio</code>, <code>get tx</code>, <code>get adc.multiplier</code>, <code>get lat</code>, and <code>get lon</code>) can be read through a room contact, but must be changed through the repeater admin CLI. Hardware-dependent queries may report unsupported.</p>
 <hr />
 <h3 id="region-management-v110">Region Management (v1.10.+)</h3>
 <h4 id="bulk-load-region-lists">Bulk-load region lists</h4>
